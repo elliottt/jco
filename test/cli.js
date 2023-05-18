@@ -1,5 +1,5 @@
 import { deepStrictEqual, ok, strictEqual } from 'node:assert';
-import { readFile, rm } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'url';
 import { exec, jcoPath } from './helpers.js';
 import { tmpdir } from 'node:os';
@@ -19,15 +19,14 @@ export async function cliTest (fixtures) {
     }
 
     test('Transcoding', async () => {
-      try {
-        const { stderr } = await exec(jcoPath, 'transpile', `test/fixtures/new-big-greet.wasm`, '-o', outDir);
-        strictEqual(stderr, '');
-        const source = await readFile(`${outDir}/new-big-greet.js`);
-        console.log(source.toString());
-      }
-      finally {
-        await cleanup();
-      }
+      const outDir = fileURLToPath(new URL(`./output/nbg`, import.meta.url));
+      const { stderr } = await exec(jcoPath, 'transpile', `test/fixtures/new-big-greet.wasm`, '-o', outDir);
+      strictEqual(stderr, '');
+      await writeFile(`${outDir}/package.json`, JSON.stringify({ type: 'module' }));
+      const source = await readFile(`${outDir}/new-big-greet.js`);
+      console.log(source.toString());
+      const m = await import(`${outDir}/new-big-greet.js`);
+      strictEqual(m.helloWorld(), 'world');
     })
 
     test('Transpile', async () => {
