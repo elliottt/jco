@@ -8,6 +8,7 @@ pub enum Intrinsic {
     Base64Compile,
     ClampGuest,
     ComponentError,
+    CreateUtf8Copier,
     DataView,
     F32ToI32,
     F64ToI64,
@@ -112,6 +113,14 @@ pub fn render_intrinsics(
                       super(enumerable ? `${String(value)} (see error.payload)` : value);
                       Object.defineProperty(this, 'payload', { value, enumerable });
                   }
+              }
+          "),
+
+          Intrinsic::CreateUtf8Copier => output.push_str("
+              function createUtf8Copier (fromMem, toMem) {
+                return function () {
+                    console.log(arguments);
+                };
               }
           "),
 
@@ -338,6 +347,7 @@ impl Intrinsic {
             Intrinsic::Base64Compile => "base64Compile",
             Intrinsic::ClampGuest => "clampGuest",
             Intrinsic::ComponentError => "ComponentError",
+            Intrinsic::CreateUtf8Copier => "createUtf8Copier",
             Intrinsic::DataView => "dataView",
             Intrinsic::F32ToI32 => "f32ToI32",
             Intrinsic::F64ToI64 => "f64ToI64",

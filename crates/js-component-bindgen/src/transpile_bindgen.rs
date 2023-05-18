@@ -7,6 +7,7 @@ use crate::{uwrite, uwriteln};
 use base64::{engine::general_purpose, Engine as _};
 use heck::*;
 use indexmap::IndexMap;
+use wasmtime_environ::fact::FixedEncoding;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 use std::mem;
@@ -14,7 +15,7 @@ use wasmtime_environ::component::{
     CanonicalOptions, Component, CoreDef, CoreExport, Export, ExportItem, GlobalInitializer,
     InstantiateModule, LowerImport, RuntimeInstanceIndex, StaticModuleIndex, Transcoder,
 };
-use wasmtime_environ::{EntityIndex, ModuleTranslation, PrimaryMap};
+use wasmtime_environ::{EntityIndex, ModuleTranslation, PrimaryMap, fact::Transcode};
 use wit_parser::abi::{AbiVariant, LiftLower};
 use wit_parser::*;
 
@@ -355,7 +356,34 @@ impl Instantiator<'_> {
                 to,
                 to64,
                 signature,
-            }) => unimplemented!(),
+            }) => {
+                if *from64 || *to64 {
+                    unimplemented!();
+                }
+                let create_transcoder = match op {
+                    Transcode::Copy(FixedEncoding::Utf8) => self.gen.intrinsic(Intrinsic::CreateUtf8Copier),
+                    Transcode::Copy(FixedEncoding::Utf16) => unimplemented!(),
+                    Transcode::Copy(FixedEncoding::Latin1) => unimplemented!(),
+                    Transcode::Latin1ToUtf16 => unimplemented!(),
+                    Transcode::Latin1ToUtf8 => unimplemented!(),
+                    Transcode::Utf16ToCompactProbablyUtf16 => unimplemented!(),
+                    Transcode::Utf16ToCompactUtf16 => unimplemented!(),
+                    Transcode::Utf16ToLatin1 => unimplemented!(),
+                    Transcode::Utf16ToUtf8 => unimplemented!(),
+                    Transcode::Utf8ToCompactUtf16 => unimplemented!(),
+                    Transcode::Utf8ToLatin1 => unimplemented!(),
+                    Transcode::Utf8ToUtf16 => unimplemented!(),
+                };
+
+                println!("{:?}", signature);
+                uwriteln!(
+                    self.src.js_init,
+                    "const transcoder{} = {create_transcoder}(memory{}, memory{});",
+                    index.as_u32(),
+                    from.as_u32(),
+                    to.as_u32()
+                );
+            }
         }
     }
 
@@ -372,7 +400,10 @@ impl Instantiator<'_> {
             let def = self.core_def(arg);
             let dst = import_obj.entry(module).or_insert(BTreeMap::new());
             let prev = dst.insert(name, def);
-            assert!(prev.is_none());
+            if !prev.is_none() {
+                println!("{:?}", prev);
+            }
+            // assert!(prev.is_none());
         }
         let mut imports = String::new();
         if !import_obj.is_empty() {
@@ -554,8 +585,8 @@ impl Instantiator<'_> {
             CoreDef::Export(e) => self.core_export(e),
             CoreDef::Lowered(i) => format!("lowering{}", i.as_u32()),
             CoreDef::AlwaysTrap(_) => unimplemented!(),
-            CoreDef::InstanceFlags(_) => unimplemented!(),
-            CoreDef::Transcoder(_) => unimplemented!(),
+            CoreDef::InstanceFlags(i) => i.as_u32().to_string(),
+            CoreDef::Transcoder(i) => format!("transcoder{}", i.as_u32()),
         }
     }
 

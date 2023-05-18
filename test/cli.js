@@ -18,6 +18,18 @@ export async function cliTest (fixtures) {
       catch {}
     }
 
+    test('Transcoding', async () => {
+      try {
+        const { stderr } = await exec(jcoPath, 'transpile', `test/fixtures/new-big-greet.wasm`, '-o', outDir);
+        strictEqual(stderr, '');
+        const source = await readFile(`${outDir}/new-big-greet.js`);
+        console.log(source.toString());
+      }
+      finally {
+        await cleanup();
+      }
+    })
+
     test('Transpile', async () => {
       try {
         const name = 'flavorful';
